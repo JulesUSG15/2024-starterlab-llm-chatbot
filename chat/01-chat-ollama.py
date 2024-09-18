@@ -23,13 +23,29 @@ def ask_bot(model: str, client: Client, temperature: float, question: str) -> It
     """
 
   # TODO 002 - Tips : Provide a dict with role and content fields for system and user instructions
-  messages = [...]
+  messages = [ 
+              {
+                "role": "system",
+                "content": system_prompt
+                },
+              {
+                "role": "user",
+                "content": question
+                }
+              ]
 
   debug_label("Prompt", messages)
 
   # TODO 003 - Tips : Use the chat method of the client object
-  return ...
-
+  return map (
+              lambda x: x["message"]["content"],
+              client.chat(
+                model=model,
+                messages=messages,
+                options={"temperature": temperature},
+                stream=True,
+              ),
+              )
 
 if __name__ == "__main__":
   # Getting arguments from CLI
@@ -39,7 +55,7 @@ if __name__ == "__main__":
   Debugger.debug_mode = args.debug
 
   # TODO 001
-  client = ...
+  client = Client(host=args.ollama_url)
 
   # Starting the prompt session
-  prompt_session(lambda question: ask_bot(args.model, client_, args.temperature, question))
+  prompt_session(lambda question: ask_bot(args.model, client, args.temperature, question))
