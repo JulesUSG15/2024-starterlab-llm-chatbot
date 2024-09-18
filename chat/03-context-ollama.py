@@ -16,7 +16,7 @@ def init_data() -> str:
   """
 
   # TODO 001
-  return ...
+  return Path("data/champ_euro_football_2024.txt").read_text()
 
 
 def ask_bot(model: str, client: Client, temperature: float, question: str, context_data: str) -> Iterator[str]:
@@ -25,18 +25,35 @@ def ask_bot(model: str, client: Client, temperature: float, question: str, conte
   """
 
   # TODO 003
-  system_prompt = ...
-  user_prompt = ...
+  system_prompt = """
+    Tu es un chatbot qui répond à des questions en utilisant uniquement les données de contexte fournies et en utilisant un ton formel.
+    Tu réponds toujours en français, quelque soit la langue dans laquelle la requête utilisateur est donnée.
+    Lorsque le contexte ne fournit pas d'informations sur la question posée, réponds seulement que tu n'as pas la réponse.
+    Par exemple, si la question concerne une recette de cuisine, tu dois répondre que tu n'as pas la réponse.
+    """
+  user_prompt = f"""
+  Context : {context_data}
+  Question : {question}
+  Reponse :
+  """
 
   messages = [
-    {...},
-    {...},
+    { "role": "system", "content": system_prompt },
+    { "role": "user", "content": user_prompt }
   ]
 
   debug_label("Prompt", messages)
 
   # TODO 004
-  return ...
+  return map(
+    lambda x: x["message"]["content"],
+    client.chat(
+      model=model,
+      messages=messages,
+      options={"temperature": temperature},
+      stream=True,
+    ),
+  )
 
 
 if __name__ == "__main__":
@@ -51,7 +68,7 @@ if __name__ == "__main__":
 
   # TODO 002
   # Getting context data
-  context_data = ...
+  context_data = init_data()
 
   # Starting the prompt session
-  prompt_session(...)
+  prompt_session(lambda question: ask_bot(args.model, client, args.temperature, question, context_data))

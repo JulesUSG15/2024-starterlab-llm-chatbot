@@ -20,18 +20,43 @@ def ask_bot(model: str, client: Client, temperature: float, question: str, n_row
 
   # load data using HuggingFace datasets API
   # TODO 002 - Charger le dataset python_code_instructions_18k_alpaca (train) et sélectionner les 100 premières lignes
-  ds = ...
+  ds = load_dataset("python_code_instructions_18k_alpaca", split="train")[0:n_rows]
+  
+  ds = ''.join(["{Question :\n"+ds["instruction"][x] + "}\nAnswer:\n{"+ds["output"][x]+"}\n\n" for x in range(n_rows)])
 
   # TODO 003 - Formatter les données Créer un system prompt avec des exemples
-  system_prompt = ...
+  system_prompt = f"""
+    Tu es un assistant répondant à des questions sur des instructions de code Python.
+    Tu dois rédiger une réponse en une phrase à la question posée par l'utilisateur.
+    Voici quelques exemples : 
+
+    {ds}
+    """
 
   # TODO 004 - Same as previous exercise with an enriched system_prompt
-  messages = [...]
+  messages = [
+    {
+      "role": "system",
+      "content": system_prompt
+    },
+    {
+      "role": "user",
+      "content": question
+    }
+  ]
 
   debug_label("Prompt", messages)
 
   # TODO 005 - Tips : Use the chat method of the client object
-  return ...
+  return map(
+    lambda x: x["message"]["content"],
+    client.chat(
+      model=model,
+      messages=messages,
+      options={"temperature": temperature},
+      stream=True,
+    ),
+  )
 
 
 if __name__ == "__main__":
@@ -42,7 +67,7 @@ if __name__ == "__main__":
   Debugger.debug_mode = args.debug
 
   # Creating the model client
-  client = ...
+  client = Client(host=args.ollama_url)
 
   # Starting the prompt session
   prompt_session(lambda question: ask_bot(args.model, client, args.temperature, question))
