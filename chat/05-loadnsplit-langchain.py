@@ -17,8 +17,8 @@ def log_chunks_stats(chunks: List[Document]) -> None:
   # Evaluate chunks length and overlap
   # TODO 002 - Tips : utiliser la fonction SequenceMatcher de difflib
   def get_overlap(s1: str, s2: str) -> str:
-    s = ...
-    pos_a, pos_b, size = s.find_longest_match(...)
+    s = difflib.SequenceMatcher(None, s1, s2, False)
+    pos_a, pos_b, size = s.find_longest_match(0, len(s1), 0, len(s2))
 
     # Getting overlaps at the start or end of chunks
     _overlap = s1[pos_a: pos_a + size]
@@ -31,14 +31,14 @@ def log_chunks_stats(chunks: List[Document]) -> None:
   overlap = []
   for k in range(n_chunks - 1):
     # TODO 003 - Tips : Use  page_content attribut
-    tmp = get_overlap(..., ...)
-    overlap.append(...)
+    tmp = get_overlap(chunks[k].page_content, chunks[k + 1].page_content)
+    overlap.append(len(tmp))
 
   # TODO 004
   debug_label(
-    f"Taille des <ansigreen>{len(chunks)}</ansigreen> chunks", f"{[len(...) for ... in ...]}"
+    f"Taille des <ansigreen>{len(chunks)}</ansigreen> chunks", f"{[len(chunk.page_content) for chunk in chunks]}"
   )
-  debug_label("Overlap des chunks", f"{...}")
+  debug_label("Overlap des chunks", f"{overlap}")
 
 
 if __name__ == "__main__":
@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
   # Splitting the files
   # TODO 001
-  chunks = ...
+  chunks = split_file(args)
 
   # Analyzing the chunks
-  log_chunks_stats(...)
+  log_chunks_stats(chunks) 
