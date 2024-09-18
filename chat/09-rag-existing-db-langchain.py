@@ -39,19 +39,30 @@ def init_chain(_model: BaseChatModel, _retriever: BaseRetriever) -> RunnableSeri
 
   # Create the custom prompt
   # TODO 004 - Tips : utiliser la fonction ChatPromptTemplate.from_messages
-  system_prompt = ...
-  human_template = ...
-  custom_prompt = ...
-
+  system_prompt = """
+    Réponds en utilisant uniquement les données de contexte fournies.
+    Lorsque le contexte ne fournit pas d'informations pour répondre à la question posée,
+    réponds que tu n'as pas la réponse.
+    """
+  human_template = """
+    Contexte: {context_data}
+    Question: {question}
+    Réponse:
+    """
+  custom_prompt = ChatPromptTemplate.from_messages(
+    [
+      SystemMessage(system_prompt),
+      HumanMessagePromptTemplate.from_template(human_template),
+    ]
+  )
   # Create the chain
-  # TODO 005
   return (
-    {... : ... | format_docs, xxx: ...}
+    {"context_data": _retriever | format_docs, "question": RunnablePassthrough()}
     | debug_runnable_fn("Données initiales")
-    | ...
+    | custom_prompt
     | debug_runnable_fn("Prompt")
-    | ...
-    | ...
+    | _model
+    | StrOutputParser()
   )
 
 
@@ -62,9 +73,13 @@ def init_retriever(_postgres_url: str, _embeddings: str) -> BaseRetriever:
 
   # loading the PGVecto.rs store
   # TODO 006
-  db = PGVecto_rs.(...)
+  db = PGVecto_rs.from_collection_name(
+    embedding=OllamaEmbeddings(model=_embeddings),
+    collection_name="doc_embeddings",
+    db_url=_postgres_url,
+  )
   # Getting the retriever
-  _retriever = ...
+  _retriever = db.as_retriever()
 
   return _retriever
 
@@ -75,7 +90,7 @@ def ask_bot(_chain: RunnableSerializable, question: str) -> Iterator[str]:
     """
 
     # TODO 007 - Tips : utiliser la fonction stream
-    return ...
+    return _chain.stream({"question": question})
 
 
 if __name__ == "__main__":
@@ -86,13 +101,13 @@ if __name__ == "__main__":
 
   # Initiating the retriever
   # TODO 001
-  retriever = ...
+  retriever = init_retriever(args.postgres_url, args.embeddings)
 
   # Instantiating the LLM chain
   # TODO 002
-  model = ...
-  chain = ...(..., ...)
+  model = ChatOllama(model=args.model, base_url=args.ollama_url)
+  chain = init_chain(model, retriever)
 
   # Starting the prompt session
   # TODO 003
-  prompt_session(...)
+  prompt_session(lambda question: ask_bot(chain, question))
