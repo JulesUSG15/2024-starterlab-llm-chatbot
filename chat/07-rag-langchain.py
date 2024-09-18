@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 import time
 
-from langchain_community.vectorstore import FAISS
+from langchain_community.vectorstores import FAISS
 from langchain_community.chat_models import ChatOllama
 from langchain_community.document_loaders import TextLoader
 from langchain_community.embeddings.ollama import OllamaEmbeddings
@@ -41,18 +41,26 @@ def init_chain(model: BaseChatModel, retriever: BaseRetriever) -> RunnableSerial
   """
 
   # TODO 004 - Tips : utiliser la fonction ChatPromptTemplate.from_messages
-  system_prompt = ...
-  human_template = ...
-  custom_prompt = ...
+  system_prompt = """
+    Répond en 3 phrases maximum et utilise un ton neutre.
+    Lorsque tu n'as pas d'informations pour répondre à la question posée, réponds que tu n'as la réponse.
+    """
+  human_template = "{question}"
+  custom_prompt = ChatPromptTemplate.from_messages(
+    [
+      SystemMessage(system_prompt),
+      HumanMessagePromptTemplate.from_template(human_template),
+    ]
+  )
 
   # TODO 005
   return (
-    {...: ... | format_docs, ...: ...}
+    {"context_data": retriever | format_docs, "question": RunnablePassthrough()}
     | debug_runnable_fn("Données initiales")
-    | ...
+    | custom_prompt
     | debug_runnable_fn("Prompt")
-    | ...
-    | ...
+    | model
+    | StrOutputParser()
   )
 
 
@@ -65,8 +73,10 @@ def init_data(embedding: Embeddings, _store: VectorStore, chunk_size: int, chunk
 
   # Define the splitter
   # TODO 006 - Tips : utliser la méthode RecursiveCharacterTextSplitter et TextLoader
-  text_splitter = ...
-  all_splits = ...
+  text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size= chunk_size, chunk_overlap= chunk_overlap, add_start_index=True
+  )
+  all_splits = TextLoader(file_path="data/champ_euro_football_2024.wiki").load_and_split(text_splitter)
 
   debug(
     f"Contenu découpé en <ansigreen>{len(all_splits)} chunks</ansigreen> en <ansigreen>{(time.time() - t0):0.3} secondes</ansigreen>"
@@ -76,10 +86,10 @@ def init_data(embedding: Embeddings, _store: VectorStore, chunk_size: int, chunk
   # Store the chunks
   t0 = time.time()
   # TODO 007 - Tips : utliser la méthode from_documents de l'objet store
-  _store = ...
+  _store = _store.from_documents(documents=all_splits, embedding=embedding)
   debug(f"Génération et sauvegarde des embeddings en <ansigreen>{(time.time() - t0):0.3} secondes</ansigreen>")
 
-  return store
+  return _store
 
 
 def ask_bot(chain: RunnableSerializable, question: str) -> Iterator[str]:
@@ -87,7 +97,7 @@ def ask_bot(chain: RunnableSerializable, question: str) -> Iterator[str]:
   Implémentation de l'appel au bot
   """
   # TODO 008 - Tips : utiliser la fonction stream
-  return ...
+  return chain.stream(question)
 
 
 if __name__ == "__main__":
@@ -99,14 +109,14 @@ if __name__ == "__main__":
 
   # Calculating and storing embeddings
   # TODO 001 -  Tips : Utiliser OllamaEmbeddings et la fonction init_data avec Chroma
-  embeddings = ...
-  store = ...
+  embeddings = OllamaEmbeddings(base_url=args.ollama_url, model=args.embeddings, temperature=args.temperature)
+  store = init_data(embeddings, FAISS, args.chunk_size, args.chunk_overlap)
 
   # Instantiating the LLM chain
   # TODO 002
-  model = ChatOllama(model=..., base_url=...)
-  chain = init_chain(..., ...)
+  model = ChatOllama(model=args.model, base_url=args.ollama_url)
+  chain = init_chain(model, store.as_retriever())
 
   # Starting the prompt session
   # TODO 003
-  prompt_session(...)
+  prompt_session(lambda question: ask_bot(chain, question))
