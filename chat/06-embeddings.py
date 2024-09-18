@@ -4,6 +4,7 @@ from typing import List
 
 import numpy as np
 import numpy.typing as npt
+import ollama
 from utils.args import init_args
 from utils.prompt import Debugger, debug, debug_label
 from utils.similarity import get_similarity
@@ -20,15 +21,15 @@ def compute_embeddings(list_sentences: List[str], _model: str) -> npt.NDArray[np
 
   # Evaluate the output dimension
   # TODO 004 - Tips : inférer le modèle d'embeddings avec un prompt pour connaitre la dimension de l'espace vectoriel
-  n_sentences = ...
-  n_dim = ...
+  n_sentences = len(list_sentences)
+  n_dim = len(ollama.embeddings(model=_model, prompt="dummy")["embedding"])
 
   t0 = time.time()
   _vectors = np.empty(shape=[n_sentences, n_dim], dtype=float)
 
   # TODO 005 - Tips : utiliser la méthode embeddings de la classe ollama
   for i, sentence in enumerate(list_sentences):
-    _vectors[i] = ...
+    _vectors[i] = ollama.embeddings(model=_model, prompt=sentence)["embedding"]
 
   debug(
     f"Vectorisation de <ansigreen>{n_sentences}</ansigreen> phrases en <ansigreen>{(time.time() - t0):0.3}</ansigreen> secondes avec le modèle {_model}"
@@ -45,7 +46,7 @@ def compute_cosine_matrix(_vectors: npt.NDArray[np.float64]) -> npt.NDArray[np.f
   # TODO 006
   for k in range(n_sentences):
     for j in range(k, n_sentences):
-      cos_matrix[k, j] = ...
+      cos_matrix[k, j] = get_similarity(_vectors[k], _vectors[j])
       cos_matrix[j, k] = cos_matrix[k, j]
 
   return cos_matrix
@@ -73,22 +74,20 @@ if __name__ == "__main__":
   # Calculating embeddings
   # TODO 001
   sentences = [
-    ...,
-    ...,
-    ...,
-    ...,
-    ...,
-    ...,
+    "Le chat est sur le tapis",
+    "Le chien est dans le jardin",
+    "Le chat et le chien sont dans la maison",
+    "Le chien est sur le tapis",
   ]
 
   # Calculating the similarity matrix
   # TODO 002
-  vectors = ...
-  cosine_matrix = ...
+  vectors = compute_embeddings(sentences, _model=args.embeddings)
+  cosine_matrix = compute_cosine_matrix(vectors)
 
   # Printing results
   # TODO 003
   with np.printoptions(precision=3) as opts:
-    debug_label("La similarité cosinus entre les phrases est respectivement", f"""\n{...}""")
+    debug_label("La similarité cosinus entre les phrases est respectivement", f"""\n{cosine_matrix}""")
   for n in range(1, len(sentences)):
-    print_similarity(..., ..., 0, n)
+    print_similarity(sentences, cosine_matrix, 0, n)
