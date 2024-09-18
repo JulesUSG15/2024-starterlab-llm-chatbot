@@ -27,16 +27,15 @@ def init_chain(_model: BaseChatModel) -> RunnableSerializable:
     """
 
   human_template = "{question}"
-
   custom_prompt = ChatPromptTemplate.from_messages(
     [
-      ...,
-      ...,
+      SystemMessage(system_prompt),
+      HumanMessagePromptTemplate.from_template(human_template),
     ]
   )
 
   # TODO 004
-  return ... | ... | ... | ...
+  return ( custom_prompt | debug_runnable_fn("Prompt") | _model | StrOutputParser() )
 
 
 def ask_bot(chain: RunnableSerializable, question: str) -> Iterator[str]:
@@ -45,7 +44,7 @@ def ask_bot(chain: RunnableSerializable, question: str) -> Iterator[str]:
   """
 
   # TODO 005 - Tips : utiliser la fonction stream
-  return ...
+  return chain.stream(question)
 
 
 if __name__ == "__main__":
@@ -57,9 +56,9 @@ if __name__ == "__main__":
 
   # Instantiating the LLM chain
   # TODO 001 - Tips : utiliser la classe ChatOllama de la bibliothèque langchain_community
-  model = ChatOllama(...)
-  chain = init_chain(...)
+  model = ChatOllama(model=args.model, base_url=args.ollama_url, temperature=args.temperature)
+  chain = init_chain(model)
 
   # Starting the prompt session
   # TODO 002
-  prompt_session(...)
+  prompt_session(lambda question: ask_bot(chain, question))
