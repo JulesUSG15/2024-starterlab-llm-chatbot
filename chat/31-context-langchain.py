@@ -8,7 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplat
 from langchain_core.runnables.base import RunnableSerializable
 from utils.args import init_args
 from utils.prompt import Debugger, debug_runnable_fn, prompt_session
-
+from langchain_community.document_loaders import TextLoader
 
 # TODO: - 001 : Initialiser la chaine en utilisant le retriever de la BDD
 #       - 002 : Récupérer les données de contexte et démarrer la session de prompt
@@ -23,20 +23,26 @@ def init_chain(model: BaseChatModel) -> RunnableSerializable:
 
   # Create the custom prompt
   # TODO 003 - Tips : utiliser la fonction ChatPromptTemplate.from_messages
-  system_prompt = ...
-  human_template = ...
-  custom_prompt = ...
+  system_prompt = """
+    Réponds en utilisant uniquement les données de contexte fournies entre triple backquotes.
+    Lorsque le contexte ne fournit pas d'informations pour répondre à la question posée, réponds que tu n'as pas la réponse.
+    """
+  human_template = """
+    Contexte: {context_data}
+    Question: {question}
+    Réponse:
+    """
+
+  custom_prompt = ChatPromptTemplate.from_messages(
+    [
+      SystemMessage(system_prompt),
+      HumanMessagePromptTemplate.from_template(human_template),
+    ]
+  )
 
   # Create the chain
   # TODO 004
-  return (
-    {...: ... | format_docs, ...: ...}
-    | debug_runnable_fn("Données initiales")
-    | ...
-    | debug_runnable_fn("Prompt")
-    | ...
-    | ...
-  )
+  return (custom_prompt | debug_runnable_fn("Prompt") | model | StrOutputParser())
 
 
 def init_data() -> str:
@@ -45,7 +51,7 @@ def init_data() -> str:
   """
 
   # TODO 005 - Tips : utliser la fonction UnstructuredHTMLLoader
-  docs = ...(file_path="data/champ_euro_football_2024.html").load()
+  docs = TextLoader(file_path="data/champ_euro_football_2024.html").load()
   return docs[0].page_content
 
 
@@ -55,7 +61,8 @@ def ask_bot(chain: RunnableSerializable, question: str, context_data: str) -> It
   """
 
   # TODO 006 - Tips : utiliser la fonction stream
-  return ...
+  return chain.stream({"question": question, "context_data": context_data})
+
 
 
 if __name__ == "__main__":
@@ -67,11 +74,11 @@ if __name__ == "__main__":
 
   # Instantiating the LLM chain
   # TODO 001
-  model = ChatOllama(model=..., base_url=...)
-  chain = init_chain(..., ...)
+  model = ChatOllama(model=args.model, base_url=args.ollama_url, temperature=args.temperature)
+  chain = init_chain(model)
 
   # Getting context data
   # TODO 002
-  context_data = ...
+  context_data = init_data()
   # Starting the prompt session
-  prompt_session(...)
+  prompt_session(lambda question: ask_bot(chain, question, context_data))
